@@ -160,7 +160,10 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchInput.trim().toLocaleLowerCase(locale);
     if (normalizedSearch.length === 0) return rows;
-    return rows.filter((row) => row.service.toLocaleLowerCase(locale).includes(normalizedSearch));
+    return rows.filter((row) =>
+      row.service.toLocaleLowerCase(locale).includes(normalizedSearch) ||
+      (row.workload ?? '').toLocaleLowerCase(locale).includes(normalizedSearch)
+    );
   }, [locale, rows, searchInput]);
 
   const sortedRows = useMemo(() => {

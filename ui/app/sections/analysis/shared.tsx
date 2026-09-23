@@ -13,8 +13,11 @@ const palette = {
 // Field names are unverified against the tenant — confirm in a Notebook (see CLAUDE.md §DQL).
 export type MetricRecord = {
   name: string;
+  cluster?: string;
+  namespace?: string;
   entity_id?: string;
   workload?: string;
+  workload_type?: string;
   availability_pct: number;
   error_rate_pct: number;
   total_count: number;

@@ -3,7 +3,7 @@
   "environmentUrl": "https://idz18332.apps.dynatrace.com/",
   "app": {
     "name": "SRE in a nutshell",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A starting project with routing, fetching data, and charting",
     "id": "my.sre.in.a.nutshell",
     "icon": "ui/assets/icon.svg",
@@ -15,7 +15,8 @@
       { "name": "state:user-app-states:read", "comment": "default template" },
       { "name": "state:user-app-states:write", "comment": "default template" },
       { "name": "storage:entities:read", "comment": "required for entity name lookups" },
-      { "name": "storage:filter-segments:read", "comment": "required for the global Segment selector" }
+      { "name": "storage:filter-segments:read", "comment": "required for the global Segment selector" },
+      { "name": "storage:smartscape:read", "comment": "required for getNodeName() / getNodeField() Smartscape lookups" }
     ]
   }
 }
