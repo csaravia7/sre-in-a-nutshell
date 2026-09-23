@@ -1,6 +1,6 @@
 {
   "$schema": "./.dt-app/app.config.schema.json",
-  "environmentUrl": "https://idz18332.apps.dynatrace.com/",
+  "environmentUrl": "https://<tenant_id>.apps.dynatrace.com/",
   "app": {
     "name": "SRE in a nutshell",
     "version": "0.0.1",
