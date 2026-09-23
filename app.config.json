@@ -1,0 +1,21 @@
+{
+  "$schema": "./.dt-app/app.config.schema.json",
+  "environmentUrl": "https://idz18332.apps.dynatrace.com/",
+  "app": {
+    "name": "SRE in a nutshell",
+    "version": "0.0.1",
+    "description": "A starting project with routing, fetching data, and charting",
+    "id": "my.sre.in.a.nutshell",
+    "icon": "ui/assets/icon.svg",
+    "scopes": [
+      { "name": "storage:logs:read", "comment": "default template" },
+      { "name": "storage:buckets:read", "comment": "default template" },
+      { "name": "storage:events:read", "comment": "default template" },
+      { "name": "storage:metrics:read", "comment": "default template" },
+      { "name": "state:user-app-states:read", "comment": "default template" },
+      { "name": "state:user-app-states:write", "comment": "default template" },
+      { "name": "storage:entities:read", "comment": "required for entity name lookups" },
+      { "name": "storage:filter-segments:read", "comment": "required for the global Segment selector" }
+    ]
+  }
+}
