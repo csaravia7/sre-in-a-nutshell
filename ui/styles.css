@@ -401,6 +401,31 @@ button, input, select {
   color: var(--text);
 }
 
+.namespace-service-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.namespace-service-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .section-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -700,6 +725,10 @@ button, input, select {
 .namespace-card-header {
   padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border, #dfe7f4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .namespace-card-metrics {

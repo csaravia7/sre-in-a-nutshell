@@ -132,6 +132,9 @@ export function NamespaceCardsSection({ onSelect }: NamespaceCardsSectionProps) 
                       <span className="status-dot" style={{ background: statusAccentColor(status) }} />
                       <span>{record.name}</span>
                     </div>
+                    {record.service_count != null && (
+                      <span className="namespace-service-badge">{t('analysis.serviceCountCard', { count: record.service_count })}</span>
+                    )}
                   </div>
 
                   <div className="namespace-card-metrics">

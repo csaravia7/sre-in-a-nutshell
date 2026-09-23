@@ -19,6 +19,7 @@ export type MetricRecord = {
   error_rate_pct: number;
   total_count: number;
   avg_response_time: number; // microseconds
+  service_count?: number;   // only present in namespace-level records
 };
 
 export type Kpis = {

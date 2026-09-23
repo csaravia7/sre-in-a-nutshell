@@ -60,11 +60,15 @@ function buildServiceUrl(service: string, entityId: string | undefined): string 
   return url.toString();
 }
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+
 export function ServiceComparisonSection({ namespace, onBack }: ServiceComparisonSectionProps) {
   const { t, locale } = useTranslation();
   const [fitScreen, setFitScreen] = useState(true);
   const [wrapText, setWrapText] = useState(true);
   const [searchInput, setSearchInput] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [sortField, setSortField] = useState<SortField>('current.throughput');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [availMin, setAvailMin] = useState(0);
@@ -188,13 +192,18 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
     [sortedRows, availMin, availMax]
   );
 
+  const totalPages = Math.max(1, Math.ceil(rangeFilteredRows.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = rangeFilteredRows.slice(safePage * pageSize, safePage * pageSize + pageSize);
+
   function changeSort(nextField: SortField) {
     if (nextField === sortField) {
       setSortDirection((currentDirection) => currentDirection === 'asc' ? 'desc' : 'asc');
-      return;
+    } else {
+      setSortField(nextField);
+      setSortDirection(nextField === 'service' ? 'asc' : 'desc');
     }
-    setSortField(nextField);
-    setSortDirection(nextField === 'service' ? 'asc' : 'desc');
+    setPage(0);
   }
 
   function sortControl(label: string, field: SortField) {
@@ -220,6 +229,9 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
           <button className="namespace-back-link" onClick={onBack}>{t('analysis.back')}</button>
           <span className="namespace-breadcrumb-sep" aria-hidden="true">›</span>
           <span className="namespace-breadcrumb-name">{namespace}</span>
+          {!isLoading && rows.length > 0 && (
+            <span className="namespace-service-count">{t('analysis.serviceCount', { count: rows.length })}</span>
+          )}
         </div>
         <div className="toolbar-row" style={{ gap: 8 }}>
           <div className="sort-quick-group" role="group" aria-label={t('analysis.sort.label')}>
@@ -254,6 +266,37 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
         isEmpty={rows.length === 0}
         emptyMessage={t('analysis.services.empty')}
       >
+        {rangeFilteredRows.length > 0 && (
+          <div className="toolbar-row" style={{ justifyContent: 'space-between', paddingBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+            <div className="toolbar-row" style={{ gap: 6 }}>
+              <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{t('analysis.pagination.perPage')}</span>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`sort-quick-btn${pageSize === n ? ' active' : ''}`}
+                  onClick={() => { setPageSize(n); setPage(0); }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="toolbar-row" style={{ gap: 8 }}>
+                <button className="secondary-button" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                  {t('analysis.pagination.prev')}
+                </button>
+                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                  {t('analysis.pagination.page', { page: safePage + 1, total: totalPages })}
+                </span>
+                <button className="secondary-button" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                  {t('analysis.pagination.next')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="filter-bar">
           <div className="analysis-search">
             <label htmlFor="service-search-input">{t('analysis.serviceSearch.label')}</label>
@@ -263,7 +306,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                 type="search"
                 value={searchInput}
                 placeholder={t('analysis.serviceSearch.placeholder')}
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) => { setSearchInput(event.target.value); setPage(0); }}
               />
             </div>
           </div>
@@ -291,7 +334,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                   step={0.1}
                   value={availMin}
                   style={{ zIndex: availMin >= availMax - 1 ? 3 : 2 }}
-                  onChange={(e) => setAvailMin(Math.min(parseFloat(e.target.value), availMax - 0.1))}
+                  onChange={(e) => { setAvailMin(Math.min(parseFloat(e.target.value), availMax - 0.1)); setPage(0); }}
                 />
                 <input
                   type="range"
@@ -300,7 +343,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                   step={0.1}
                   value={availMax}
                   style={{ zIndex: 2 }}
-                  onChange={(e) => setAvailMax(Math.max(parseFloat(e.target.value), availMin + 0.1))}
+                  onChange={(e) => { setAvailMax(Math.max(parseFloat(e.target.value), availMin + 0.1)); setPage(0); }}
                 />
               </div>
               <div className="dual-range-ticks">
@@ -339,7 +382,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
               </tr>
             </thead>
             <tbody>
-              {rangeFilteredRows.map((row) => (
+              {pageRows.map((row) => (
                 <tr key={row.key}>
                   <td>
                     <div className="service-identity">
@@ -368,6 +411,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
             </table>
           </div>
         )}
+
       </SectionCard>
     </div>
   );
