@@ -17,6 +17,16 @@ import {
 const CARD_PERIOD = ['now()-24h', 'now()'] as const;
 const PAGE_SIZE = 15;
 
+type SortField = 'availability_pct' | 'error_rate_pct' | 'total_count' | 'avg_response_time';
+type SortState = { field: SortField; dir: 'asc' | 'desc' } | null;
+
+const SORT_FIELDS: { field: SortField; labelKey: 'analysis.sort.availability' | 'analysis.sort.errorRate' | 'analysis.sort.throughput' | 'analysis.sort.latency'; descBest: boolean }[] = [
+  { field: 'availability_pct',  labelKey: 'analysis.sort.availability', descBest: true },
+  { field: 'error_rate_pct',    labelKey: 'analysis.sort.errorRate',    descBest: false },
+  { field: 'total_count',       labelKey: 'analysis.sort.throughput',   descBest: true },
+  { field: 'avg_response_time', labelKey: 'analysis.sort.latency',      descBest: false },
+];
+
 type NamespaceCardsSectionProps = {
   onSelect: (namespace: string) => void;
 };
@@ -38,20 +48,33 @@ export function NamespaceCardsSection({ onSelect }: NamespaceCardsSectionProps) 
   const records = useMemo(() => data?.records ?? [], [data]);
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState('');
-  const [availSort, setAvailSort] = useState<'desc' | 'asc' | null>(null);
+  const [sortState, setSortState] = useState<SortState>(null);
+
+  const cycleSort = (field: SortField) => {
+    setSortState((prev) => {
+      if (prev === null || prev.field !== field) return { field, dir: 'desc' };
+      if (prev.dir === 'desc') return { field, dir: 'asc' };
+      return null;
+    });
+    setPage(0);
+  };
 
   const filteredRecords = useMemo(() => {
     const normalizedSearch = searchInput.trim().toLocaleLowerCase(locale);
     const base = normalizedSearch.length === 0
       ? records
       : records.filter((r) => r.name.toLocaleLowerCase(locale).includes(normalizedSearch));
-    if (availSort === null) return base;
-    return [...base].sort((a, b) =>
-      availSort === 'desc'
-        ? (b.availability_pct ?? 0) - (a.availability_pct ?? 0)
-        : (a.availability_pct ?? 0) - (b.availability_pct ?? 0)
-    );
-  }, [locale, records, searchInput, availSort]);
+    if (sortState === null) return base;
+    const { field, dir } = sortState;
+    return [...base].sort((a, b) => {
+      const av = parseFloat(String(a[field] ?? 0));
+      const bv = parseFloat(String(b[field] ?? 0));
+      if (isNaN(av) && isNaN(bv)) return 0;
+      if (isNaN(av)) return 1;
+      if (isNaN(bv)) return -1;
+      return dir === 'desc' ? bv - av : av - bv;
+    });
+  }, [locale, records, searchInput, sortState]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -85,22 +108,26 @@ export function NamespaceCardsSection({ onSelect }: NamespaceCardsSectionProps) 
               {t('analysis.sort.label')}
             </label>
             <div className="sort-quick-group" role="group" aria-label={t('analysis.sort.label')}>
-              <button
-                type="button"
-                className={`sort-quick-btn${availSort === 'desc' ? ' active' : ''}`}
-                onClick={() => { setAvailSort((v) => v === 'desc' ? null : 'desc'); setPage(0); }}
-                title={t('analysis.sort.bestFirst')}
-              >
-                {t('analysis.sort.availDesc')}
-              </button>
-              <button
-                type="button"
-                className={`sort-quick-btn${availSort === 'asc' ? ' active' : ''}`}
-                onClick={() => { setAvailSort((v) => v === 'asc' ? null : 'asc'); setPage(0); }}
-                title={t('analysis.sort.worstFirst')}
-              >
-                {t('analysis.sort.availAsc')}
-              </button>
+              {SORT_FIELDS.map(({ field, labelKey, descBest }) => {
+                const active = sortState?.field === field ? sortState.dir : null;
+                const indicator = active === 'desc' ? ' ▼' : active === 'asc' ? ' ▲' : '';
+                const title = active === null
+                  ? `${t(labelKey)}: ${descBest ? 'highest' : 'lowest'} first`
+                  : active === 'desc'
+                    ? `${t(labelKey)}: ${descBest ? 'lowest' : 'highest'} first`
+                    : `${t(labelKey)}: clear sort`;
+                return (
+                  <button
+                    key={field}
+                    type="button"
+                    className={`sort-quick-btn${active !== null ? ' active' : ''}`}
+                    onClick={() => cycleSort(field)}
+                    title={title}
+                  >
+                    {t(labelKey)}{indicator}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

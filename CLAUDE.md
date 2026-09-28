@@ -17,7 +17,7 @@ Full requirements and build phases are in [specs.md](specs.md).
 
 ## Target Environment
 
-- **Dynatrace tenant**: `https://idz18332.apps.dynatrace.com/`
+- **Dynatrace tenant**: `https://tenant_id.apps.dynatrace.com/`
 - **App ID**: `my.sre.in.a.nutshell`
 - **Current scopes**: `storage:logs:read`, `storage:buckets:read` — additional scopes needed for full feature set (see specs.md §6)
 

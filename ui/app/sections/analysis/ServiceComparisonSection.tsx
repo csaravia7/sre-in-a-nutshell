@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDql } from '@dynatrace-sdk/react-hooks';
 import { getEnvironmentUrl } from '@dynatrace-sdk/app-environment';
 import { SectionCard } from '../../components/SectionCard';
 import { TableWrapToggle } from '../../components/TableWrapToggle';
 import { ResizableTh } from '../../components/ResizableTh';
 import { useTranslation } from '../../i18n/LanguageProvider';
+import type { AnalysisFiltersProps } from './filters';
 import {
   availabilityFormat,
   buildServiceQuery,
@@ -19,12 +20,16 @@ import {
   type MetricRecord,
 } from './shared';
 
-// Current 24h vs the same 24h window one day ago and one week ago.
+/**
+ * Deliberately fixed, and deliberately not driven by the shared timeframe: this
+ * view answers the on-call question "how does now compare to yesterday and to
+ * last week". Each reference is the *same 24h window* shifted back, not a
+ * running total — see `analysis.services.windowNote`.
+ */
 const TIMEFRAMES = {
   current: ['now()-24h', 'now()'],
   previousDay: ['now()-48h', 'now()-24h'],
   previousWeek: ['now()-8d', 'now()-7d'],
-  lastSevenDays: ['now()-7d', 'now()'],
 } as const;
 
 type ServiceRow = {
@@ -37,9 +42,8 @@ type ServiceRow = {
   ref7d: Kpis; // raw values from 7 days ago same 24h window
 };
 
-type ServiceComparisonSectionProps = {
+type ServiceComparisonSectionProps = AnalysisFiltersProps & {
   namespace: string;
-  onBack: () => void;
 };
 
 type MetricKey = keyof Kpis;
@@ -62,17 +66,25 @@ function buildServiceUrl(service: string, entityId: string | undefined): string 
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
-export function ServiceComparisonSection({ namespace, onBack }: ServiceComparisonSectionProps) {
+export function ServiceComparisonSection({
+  namespace,
+  filters,
+  onFiltersChange,
+}: ServiceComparisonSectionProps) {
   const { t, locale } = useTranslation();
   const [fitScreen, setFitScreen] = useState(true);
   const [wrapText, setWrapText] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(20);
   const [sortField, setSortField] = useState<SortField>('current.throughput');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [availMin, setAvailMin] = useState(0);
-  const [availMax, setAvailMax] = useState(100);
+
+  const { search: searchInput, availMin, availMax } = filters;
+
+  // The other tab can change these while this one is hidden, so reset paging
+  // here rather than in each handler — otherwise you'd come back to a page that
+  // no longer exists.
+  useEffect(() => { setPage(0); }, [searchInput, availMin, availMax]);
 
   const currentQuery = useMemo(() => buildServiceQuery(namespace, TIMEFRAMES.current), [namespace]);
   const dayQuery = useMemo(() => buildServiceQuery(namespace, TIMEFRAMES.previousDay), [namespace]);
@@ -86,7 +98,13 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
     const recordKey = (record: MetricRecord) => `${record.name}\u0000${record.workload ?? ''}`;
     const index = (records: MetricRecord[] | undefined) => {
       const map = new Map<string, MetricRecord>();
-      for (const record of records ?? []) map.set(recordKey(record), record);
+      for (const record of records ?? []) {
+        // Backstop: the query already constrains the namespace, but if a
+        // segment ever changed what the Smartscape lookup resolves to, a
+        // stray record would silently show up as part of this namespace.
+        if (record.namespace !== undefined && record.namespace !== namespace) continue;
+        map.set(recordKey(record), record);
+      }
       return map;
     };
     const curMap = index(current.data?.records);
@@ -110,7 +128,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
         };
       })
       .sort((a, b) => (b.current.throughput ?? 0) - (a.current.throughput ?? 0));
-  }, [current.data, previousDay.data, previousWeek.data]);
+  }, [current.data, previousDay.data, previousWeek.data, namespace]);
 
   const metricColumns = [
     {
@@ -227,41 +245,6 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
 
   return (
     <div className="page">
-      <div className="toolbar-row namespace-detail-topbar">
-        <div className="namespace-detail-breadcrumb">
-          <button className="namespace-back-link" onClick={onBack}>{t('analysis.back')}</button>
-          <span className="namespace-breadcrumb-sep" aria-hidden="true">›</span>
-          <span className="namespace-breadcrumb-name">{namespace}</span>
-          {!isLoading && rows.length > 0 && (
-            <span className="namespace-service-count">{t('analysis.serviceCount', { count: rows.length })}</span>
-          )}
-        </div>
-        <div className="toolbar-row" style={{ gap: 8 }}>
-          <div className="sort-quick-group" role="group" aria-label={t('analysis.sort.label')}>
-            <button
-              type="button"
-              className={`sort-quick-btn${sortField === 'current.availability' && sortDirection === 'desc' ? ' active' : ''}`}
-              onClick={() => { setSortField('current.availability'); setSortDirection('desc'); }}
-              title={t('analysis.sort.bestFirst')}
-            >
-              {t('analysis.sort.availDesc')}
-            </button>
-            <button
-              type="button"
-              className={`sort-quick-btn${sortField === 'current.availability' && sortDirection === 'asc' ? ' active' : ''}`}
-              onClick={() => { setSortField('current.availability'); setSortDirection('asc'); }}
-              title={t('analysis.sort.worstFirst')}
-            >
-              {t('analysis.sort.availAsc')}
-            </button>
-          </div>
-          <button className="secondary-button" type="button" onClick={() => setFitScreen((v) => !v)}>
-            {fitScreen ? t('analysis.compact') : t('analysis.fullWidth')}
-          </button>
-          <TableWrapToggle wrapText={wrapText} onToggle={setWrapText} />
-        </div>
-      </div>
-
       <SectionCard
         title={t('analysis.services.title', { namespace })}
         isLoading={isLoading}
@@ -269,6 +252,8 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
         isEmpty={rows.length === 0}
         emptyMessage={t('analysis.services.empty')}
       >
+        <p className="view-note">{t('analysis.services.windowNote')}</p>
+
         {rangeFilteredRows.length > 0 && (
           <div className="toolbar-row" style={{ justifyContent: 'space-between', paddingBottom: 8, flexWrap: 'wrap', gap: 8 }}>
             <div className="toolbar-row" style={{ gap: 6 }}>
@@ -283,6 +268,9 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                   {n}
                 </button>
               ))}
+              <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
+                {t('analysis.serviceCount', { count: rangeFilteredRows.length })}
+              </span>
             </div>
             {totalPages > 1 && (
               <div className="toolbar-row" style={{ gap: 8 }}>
@@ -300,7 +288,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
           </div>
         )}
 
-        <div className="filter-bar">
+        <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
           <div className="analysis-search">
             <label htmlFor="service-search-input">{t('analysis.serviceSearch.label')}</label>
             <div className="analysis-search-controls">
@@ -309,7 +297,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                 type="search"
                 value={searchInput}
                 placeholder={t('analysis.serviceSearch.placeholder')}
-                onChange={(event) => { setSearchInput(event.target.value); setPage(0); }}
+                onChange={(event) => onFiltersChange({ search: event.target.value })}
               />
             </div>
           </div>
@@ -337,7 +325,7 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                   step={0.1}
                   value={availMin}
                   style={{ zIndex: availMin >= availMax - 1 ? 3 : 2 }}
-                  onChange={(e) => { setAvailMin(Math.min(parseFloat(e.target.value), availMax - 0.1)); setPage(0); }}
+                  onChange={(e) => onFiltersChange({ availMin: Math.min(parseFloat(e.target.value), availMax - 0.1) })}
                 />
                 <input
                   type="range"
@@ -346,13 +334,35 @@ export function ServiceComparisonSection({ namespace, onBack }: ServiceCompariso
                   step={0.1}
                   value={availMax}
                   style={{ zIndex: 2 }}
-                  onChange={(e) => { setAvailMax(Math.max(parseFloat(e.target.value), availMin + 0.1)); setPage(0); }}
+                  onChange={(e) => onFiltersChange({ availMax: Math.max(parseFloat(e.target.value), availMin + 0.1) })}
                 />
               </div>
               <div className="dual-range-ticks">
                 <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
               </div>
             </div>
+          </div>
+          <div className="toolbar-row" style={{ gap: 8 }}>
+            <div className="sort-quick-group" role="group" aria-label={t('analysis.sort.label')}>
+              <button
+                type="button"
+                className={`sort-quick-btn${sortField === 'current.availability' && sortDirection === 'desc' ? ' active' : ''}`}
+                onClick={() => { setSortField('current.availability'); setSortDirection('desc'); }}
+              >
+                {t('analysis.sort.availability')} ▼
+              </button>
+              <button
+                type="button"
+                className={`sort-quick-btn${sortField === 'current.availability' && sortDirection === 'asc' ? ' active' : ''}`}
+                onClick={() => { setSortField('current.availability'); setSortDirection('asc'); }}
+              >
+                {t('analysis.sort.availability')} ▲
+              </button>
+            </div>
+            <button className="secondary-button" type="button" onClick={() => setFitScreen((v) => !v)}>
+              {fitScreen ? t('analysis.compact') : t('analysis.fullWidth')}
+            </button>
+            <TableWrapToggle wrapText={wrapText} onToggle={setWrapText} />
           </div>
         </div>
 

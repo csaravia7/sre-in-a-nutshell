@@ -51,7 +51,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
 
   return (
-    <IntlProvider locale={locale} defaultLocale="en" messages={catalogs[locale]}>
+    <IntlProvider
+      locale={locale}
+      defaultLocale="en"
+      messages={catalogs[locale]}
+      onError={(err) => {
+        // Strato components resolve their own internal message keys through this
+        // IntlProvider. Those keys are not in our catalog, so react-intl logs
+        // MISSING_TRANSLATION noise. Suppress those; re-throw everything else.
+        if (err.code === 'MISSING_TRANSLATION') return;
+        console.error(err);
+      }}
+    >
       <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
     </IntlProvider>
   );

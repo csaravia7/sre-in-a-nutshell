@@ -1166,3 +1166,281 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+/* ---------------------------------------------------------------- *
+ * Analysis — timeframe picker & daily availability heatmap
+ * ---------------------------------------------------------------- */
+
+.timeframe-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeframe-picker-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.timeframe-picker-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.timeframe-picker-active {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+}
+
+.timeframe-picker-custom {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.timeframe-field,
+.heatmap-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.timeframe-field > span,
+.heatmap-field > span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.timeframe-picker-error {
+  align-self: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--critical);
+}
+
+.heatmap-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.heatmap-controls-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.heatmap-controls-row .analysis-search {
+  flex: 1 1 220px;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.heatmap-legend-title {
+  font-weight: 700;
+}
+
+.heatmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.heatmap-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.heatmap-legend-swatch-none {
+  background: repeating-linear-gradient(45deg, var(--tag-muted), var(--tag-muted) 3px, var(--surface) 3px, var(--surface) 6px);
+  border: 1px solid var(--border);
+}
+
+.heatmap-scroll {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.heatmap-table {
+  border-collapse: separate;
+  border-spacing: 3px;
+  width: 100%;
+}
+
+.heatmap-table th,
+.heatmap-table td {
+  padding: 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.heatmap-table thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 6px;
+  vertical-align: bottom;
+}
+
+.heatmap-service-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  text-align: left !important;
+  min-width: 240px;
+  max-width: 320px;
+  padding-right: 12px !important;
+}
+
+.heatmap-overall-col {
+  min-width: 90px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  padding-right: 10px !important;
+}
+
+.heatmap-overall-requests {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.heatmap-day-col {
+  min-width: 46px;
+}
+
+.heatmap-day-weekday,
+.heatmap-day-date {
+  display: block;
+  line-height: 1.25;
+}
+
+.heatmap-day-weekday {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.heatmap-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  cursor: default;
+  transition: transform 0.12s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.12);
+}
+
+.heatmap-cell-none {
+  background: repeating-linear-gradient(45deg, var(--tag-muted), var(--tag-muted) 3px, var(--surface) 3px, var(--surface) 6px);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.heatmap-footnote,
+.view-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Explains which timeframe a view actually uses. Sits above the table, so it
+ * needs to read as a note rather than as content. */
+.view-note {
+  line-height: 1.45;
+  max-width: 90ch;
+}
+
+/* Only the block-level usage needs to push the table down; the picker renders
+ * its note inline in a flex row that already has a gap. */
+p.view-note {
+  margin-bottom: 12px;
+}
+
+.timeframe-picker-scope {
+  flex-basis: 100%;
+}
+
+@media (max-width: 720px) {
+  .heatmap-service-col {
+    min-width: 160px;
+  }
+
+  .heatmap-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Breadcrumb floated onto the tab bar's right edge, vertically centred on the
+ * tab labels (6px padding + ~20px line-height). Strato owns the tab list markup,
+ * so overlaying is the only way to share that row. */
+.analysis-tabs {
+  position: relative;
+}
+
+.analysis-tabs-breadcrumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 55%;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 12px;
+  background: var(--bg);
+}
+
+@media (max-width: 720px) {
+  .analysis-tabs-breadcrumb {
+    position: static;
+    max-width: 100%;
+    height: auto;
+    padding: 0 0 8px;
+    background: none;
+  }
+}

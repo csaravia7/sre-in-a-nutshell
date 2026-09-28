@@ -3,7 +3,7 @@
   "environmentUrl": "https://idz18332.apps.dynatrace.com/",
   "app": {
     "name": "SRE in a nutshell",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "A starting project with routing, fetching data, and charting",
     "id": "my.sre.in.a.nutshell",
     "icon": "ui/assets/icon.svg",

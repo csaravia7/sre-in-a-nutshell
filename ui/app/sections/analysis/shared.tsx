@@ -44,7 +44,45 @@ export function toKpis(record: MetricRecord | undefined): Kpis {
   };
 }
 
-export { namespaceQuery as buildNamespaceQuery, serviceQuery as buildServiceQuery } from '../../queries/analysis';
+export {
+  namespaceQuery as buildNamespaceQuery,
+  serviceQuery as buildServiceQuery,
+  heatmapQuery as buildHeatmapQuery,
+} from '../../queries/analysis';
+
+// Four-step availability scale used by the heatmap. `none` means "no traffic that
+// day", which is deliberately distinct from red — a silent service isn't a failing one.
+export type AvailabilityBucket = 'green' | 'yellow' | 'orange' | 'red' | 'none';
+
+export const AVAILABILITY_BUCKETS: readonly AvailabilityBucket[] = ['green', 'yellow', 'orange', 'red'];
+
+// Lower bound (inclusive) of each bucket, in percent.
+export const BUCKET_THRESHOLDS: Record<Exclude<AvailabilityBucket, 'none'>, number> = {
+  green: 99.9,
+  yellow: 99,
+  orange: 95,
+  red: 0,
+};
+
+const bucketColors: Record<AvailabilityBucket, string> = {
+  green: palette.success,
+  yellow: '#d6a10a',
+  orange: '#dd6b20',
+  red: palette.critical,
+  none: 'transparent',
+};
+
+export function availabilityBucket(value: number | null): AvailabilityBucket {
+  if (value === null || !isFinite(value)) return 'none';
+  if (value >= BUCKET_THRESHOLDS.green) return 'green';
+  if (value >= BUCKET_THRESHOLDS.yellow) return 'yellow';
+  if (value >= BUCKET_THRESHOLDS.orange) return 'orange';
+  return 'red';
+}
+
+export function bucketColor(bucket: AvailabilityBucket): string {
+  return bucketColors[bucket];
+}
 
 // Compact number formatting (k, M, B, T…), locale-aware.
 export function formatCompact(value: number, locale: Locale): string {
