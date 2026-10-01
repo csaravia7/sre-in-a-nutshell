@@ -1412,35 +1412,137 @@ p.view-note {
   }
 }
 
-/* Breadcrumb floated onto the tab bar's right edge, vertically centred on the
- * tab labels (6px padding + ~20px line-height). Strato owns the tab list markup,
- * so overlaying is the only way to share that row. */
-.analysis-tabs {
-  position: relative;
-}
-
+/* Breadcrumb sits in its own row above the tab bar so the tab buttons
+ * are never covered, regardless of tab count or label length. */
 .analysis-tabs-breadcrumb {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  max-width: 55%;
   min-width: 0;
   overflow: hidden;
-  padding-left: 12px;
-  background: var(--bg);
+  padding-bottom: 6px;
 }
 
-@media (max-width: 720px) {
-  .analysis-tabs-breadcrumb {
-    position: static;
-    max-width: 100%;
-    height: auto;
-    padding: 0 0 8px;
-    background: none;
+/* ── Latency Timeseries Section ───────────────────────────── */
+
+.timeseries-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .timeseries-layout {
+    grid-template-columns: 1fr;
   }
+}
+
+.timeseries-service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 480px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.timeseries-service-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.timeseries-service-item:hover {
+  background: var(--surface-hover, rgba(0,0,0,0.04));
+  border-color: var(--border);
+}
+
+.timeseries-service-item.selected {
+  background: var(--surface-selected, rgba(31,157,97,0.08));
+  border-color: var(--primary, #1f9d61);
+}
+
+.timeseries-service-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.timeseries-service-workload {
+  font-size: 0.78rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.timeseries-service-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.timeseries-chart-area {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.timeseries-charts-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.timeseries-charts-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  min-height: 28px;
+}
+
+.timeseries-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1200px) {
+  .timeseries-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.timeseries-chart-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.timeseries-chart-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }

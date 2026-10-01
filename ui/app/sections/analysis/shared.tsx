@@ -21,7 +21,7 @@ export type MetricRecord = {
   availability_pct: number;
   error_rate_pct: number;
   total_count: number;
-  avg_response_time: number; // microseconds
+  p90_response_time: number; // microseconds — 90th-percentile latency
   service_count?: number;   // only present in namespace-level records
 };
 
@@ -40,14 +40,29 @@ export function toKpis(record: MetricRecord | undefined): Kpis {
     availability: record.availability_pct,
     errorRate: record.error_rate_pct,
     throughput: record.total_count,
-    latency: record.avg_response_time / 1000,
+    latency: record.p90_response_time / 1000,
   };
 }
+
+export type TimeseriesRecord = {
+  name: string;
+  workload?: string;
+  entity_id?: string;
+  namespace?: string;
+  cluster?: string;
+  timeframe?: { start: string; end: string };
+  total: (number | null)[];
+  failures: (number | null)[];
+  p50_latency: (number | null)[];
+  p90_latency: (number | null)[];
+  p99_latency: (number | null)[];
+};
 
 export {
   namespaceQuery as buildNamespaceQuery,
   serviceQuery as buildServiceQuery,
   heatmapQuery as buildHeatmapQuery,
+  serviceTimeseriesQuery as buildTimeseriesQuery,
 } from '../../queries/analysis';
 
 // Four-step availability scale used by the heatmap. `none` means "no traffic that

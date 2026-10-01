@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDql } from '@dynatrace-sdk/react-hooks';
+import { useProgressiveLoading } from '../../hooks/useProgressiveLoading';
 import { getEnvironmentUrl } from '@dynatrace-sdk/app-environment';
 import { SectionCard } from '../../components/SectionCard';
 import { TableWrapToggle } from '../../components/TableWrapToggle';
@@ -174,6 +175,7 @@ export function ServiceComparisonSection({
   ];
 
   const isLoading = current.isLoading || previousDay.isLoading || previousWeek.isLoading;
+  const { firstLoading, reloading } = useProgressiveLoading(isLoading, current.data);
   const error = current.error ?? previousDay.error ?? previousWeek.error;
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchInput.trim().toLocaleLowerCase(locale);
@@ -247,7 +249,8 @@ export function ServiceComparisonSection({
     <div className="page">
       <SectionCard
         title={t('analysis.services.title', { namespace })}
-        isLoading={isLoading}
+        isLoading={firstLoading}
+        reloading={reloading}
         error={error}
         isEmpty={rows.length === 0}
         emptyMessage={t('analysis.services.empty')}

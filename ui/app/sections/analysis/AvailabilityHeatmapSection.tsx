@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDql } from '@dynatrace-sdk/react-hooks';
+import { useProgressiveLoading } from '../../hooks/useProgressiveLoading';
 import { getEnvironmentUrl } from '@dynatrace-sdk/app-environment';
 import { SectionCard } from '../../components/SectionCard';
 import { MAX_RANGE_DAYS, TimeframePicker } from '../../components/TimeframePicker';
@@ -111,8 +112,20 @@ export function AvailabilityHeatmapSection({
 
   const heatmapQuery = useMemo(() => buildHeatmapQuery(namespace, range), [namespace, range]);
   const heatmap = useDql<HeatmapRecord>(heatmapQuery);
+  // resetKey=namespace ensures the skeleton shows (not empty children) when switching namespaces
+  // in keepMounted mode, consistent with other sections.
+  const { firstLoading, reloading } = useProgressiveLoading(heatmap.isLoading, heatmap.data, namespace);
 
-  const records = useMemo(() => heatmap.data?.records ?? [], [heatmap.data]);
+  // Backstop: DQL already constrains by namespace inside the query, but useDql may return
+  // stale data from the previous namespace while a new query is in flight. Only keep records
+  // that match the current namespace (or have no namespace field, which shouldn't occur after
+  // the isNotNull filter in DQL but is guarded here for safety).
+  const records = useMemo(
+    () => (heatmap.data?.records ?? []).filter(
+      (r) => r.namespace === undefined || r.namespace === namespace,
+    ),
+    [heatmap.data, namespace],
+  );
 
   const bucketCount = useMemo(
     () => records.reduce((max, record) => Math.max(max, record.total?.length ?? 0), 0),
@@ -122,13 +135,7 @@ export function AvailabilityHeatmapSection({
   const dayAxis = useMemo(() => buildDayAxis(records[0], bucketCount), [records, bucketCount]);
 
   const rows = useMemo<HeatmapRow[]>(() => {
-    // Backstop: the query already constrains the namespace, but if a segment
-    // ever changed what the Smartscape lookup resolves to, a stray record
-    // would silently show up as part of this namespace.
-    const scoped = records.filter(
-      (record) => record.namespace === null || record.namespace === undefined || record.namespace === namespace
-    );
-    return scoped.map((record) => {
+    return records.map((record, index) => {
       const cells = Array.from({ length: bucketCount }, (_, index) =>
         toCell(record.total?.[index], record.failures?.[index])
       );
@@ -139,7 +146,11 @@ export function AvailabilityHeatmapSection({
         BUCKET_RANK.none
       );
       return {
-        key: `${record.name}\u0000${record.workload ?? ''}`,
+        // entity_id (dt.smartscape.service) is unique per service. Services can share
+        // a display name and workload (e.g. several ":0" / platform-gateway-nginx), so
+        // keying on name+workload collides — React then fails to reconcile and leaves
+        // stale rows in the DOM when the search/filter changes.
+        key: record.entity_id ?? `${record.name}\u0000${record.workload ?? ''}\u0000${index}`,
         service: record.name,
         workload: record.workload ?? null,
         entityId: record.entity_id ?? null,
@@ -149,7 +160,7 @@ export function AvailabilityHeatmapSection({
         worstBucketRank,
       };
     });
-  }, [records, bucketCount, namespace]);
+  }, [records, bucketCount]);
 
   const searchedRows = useMemo(() => {
     const normalized = searchInput.trim().toLocaleLowerCase(locale);
@@ -335,7 +346,8 @@ export function AvailabilityHeatmapSection({
           namespace,
           days: bucketCount > 0 ? bucketCount : timeframe.days,
         })}
-        isLoading={heatmap.isLoading}
+        isLoading={firstLoading}
+        reloading={reloading}
         error={heatmap.error}
         isEmpty={rows.length === 0}
         emptyMessage={t('analysis.heatmap.empty')}

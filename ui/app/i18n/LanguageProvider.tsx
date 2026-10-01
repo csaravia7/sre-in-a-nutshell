@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { IntlProvider } from 'react-intl';
+import { IntlErrorCode } from '@formatjs/intl';
 import { catalogs, type Locale, type MessageKey } from './translations';
 
 const STORAGE_KEY = 'sre-in-a-nutshell-locale';
@@ -59,7 +60,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         // Strato components resolve their own internal message keys through this
         // IntlProvider. Those keys are not in our catalog, so react-intl logs
         // MISSING_TRANSLATION noise. Suppress those; re-throw everything else.
-        if (err.code === 'MISSING_TRANSLATION') return;
+        if (err.code === IntlErrorCode.MISSING_TRANSLATION) return;
         console.error(err);
       }}
     >

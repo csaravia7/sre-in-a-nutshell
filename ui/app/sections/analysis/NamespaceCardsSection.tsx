@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useDql } from '@dynatrace-sdk/react-hooks';
 import { SectionCard } from '../../components/SectionCard';
+import { useProgressiveLoading } from '../../hooks/useProgressiveLoading';
 import { useTranslation } from '../../i18n/LanguageProvider';
 import {
   availabilityFormat,
@@ -17,14 +18,14 @@ import {
 const CARD_PERIOD = ['now()-24h', 'now()'] as const;
 const PAGE_SIZE = 15;
 
-type SortField = 'availability_pct' | 'error_rate_pct' | 'total_count' | 'avg_response_time';
+type SortField = 'availability_pct' | 'error_rate_pct' | 'total_count' | 'p90_response_time';
 type SortState = { field: SortField; dir: 'asc' | 'desc' } | null;
 
 const SORT_FIELDS: { field: SortField; labelKey: 'analysis.sort.availability' | 'analysis.sort.errorRate' | 'analysis.sort.throughput' | 'analysis.sort.latency'; descBest: boolean }[] = [
   { field: 'availability_pct',  labelKey: 'analysis.sort.availability', descBest: true },
   { field: 'error_rate_pct',    labelKey: 'analysis.sort.errorRate',    descBest: false },
   { field: 'total_count',       labelKey: 'analysis.sort.throughput',   descBest: true },
-  { field: 'avg_response_time', labelKey: 'analysis.sort.latency',      descBest: false },
+  { field: 'p90_response_time', labelKey: 'analysis.sort.latency',      descBest: false },
 ];
 
 type NamespaceCardsSectionProps = {
@@ -44,6 +45,7 @@ export function NamespaceCardsSection({ onSelect }: NamespaceCardsSectionProps) 
   const { t, locale } = useTranslation();
   const query = useMemo(() => buildNamespaceQuery(CARD_PERIOD), []);
   const { data, isLoading, error } = useDql<MetricRecord>(query);
+  const { firstLoading, reloading } = useProgressiveLoading(isLoading, data);
 
   const records = useMemo(() => data?.records ?? [], [data]);
   const [page, setPage] = useState(0);
@@ -83,7 +85,8 @@ export function NamespaceCardsSection({ onSelect }: NamespaceCardsSectionProps) 
   return (
     <SectionCard
       title={t('analysis.cards.title')}
-      isLoading={isLoading}
+      isLoading={firstLoading}
+      reloading={reloading}
       error={error}
       isEmpty={records.length === 0}
       emptyMessage={t('analysis.empty')}

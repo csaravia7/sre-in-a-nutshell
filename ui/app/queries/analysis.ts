@@ -1,17 +1,3 @@
-const METRIC_TIMESERIES = `timeseries {
-  total         = sum(dt.service.request.count),
-  failures      = sum(dt.service.request.failure_count),
-  response_time = percentile(dt.service.request.response_time, 50)
-}, by: { dt.smartscape.service }`;
-
-const METRIC_AGGREGATION = `| fieldsAdd
-    total_count           = arraySum(total),
-    failure_count         = arraySum(failures),
-    service_response_time = arrayAvg(response_time)
-| filter total_count > 0
-| fieldsAdd weighted_response_time = service_response_time * total_count
-| fields dt.smartscape.service, total_count, failure_count, weighted_response_time`;
-
 const NAMESPACE_LOOKUP = `smartscapeNodes "SERVICE"
     | traverse edgeTypes: {belongs_to}, targetTypes: {K8S_NAMESPACE}
     | fields
@@ -54,14 +40,13 @@ const WORKLOAD_LOOKUP = `smartscapeNodes "SERVICE"
         workload      = name,
         workload_type = type`;
 
-const KPI_FIELDS = `| fieldsAdd
-    avg_response_time = weighted_response_time / total_count,
-    error_rate_pct    = (failure_count / total_count) * 100,
-    availability_pct  = 100 - (failure_count / total_count) * 100`;
-
 export function namespaceQuery([from, to]: readonly [string, string]): string {
-  return `${METRIC_TIMESERIES}, from: ${from}, to: ${to}
-${METRIC_AGGREGATION}
+  return `timeseries {
+  total_count   = sum(dt.service.request.count, scalar: true),
+  failure_count = sum(dt.service.request.failure_count, scalar: true),
+  p90_us        = percentile(dt.service.request.response_time, 90, scalar: true)
+}, by: { dt.smartscape.service }, from: ${from}, to: ${to}
+| filter total_count > 0
 | lookup [
     ${NAMESPACE_LOOKUP}
   ],
@@ -70,14 +55,17 @@ ${METRIC_AGGREGATION}
   fields: { namespace, cluster }
 | filter isNotNull(namespace)
 | summarize
-    total_count            = sum(total_count),
-    failure_count          = sum(failure_count),
-    weighted_response_time = sum(weighted_response_time),
-    service_count          = count(),
+    total_count   = sum(total_count),
+    failure_count = sum(failure_count),
+    weighted_p90  = sum(p90_us * total_count),
+    service_count = count(),
     by: { namespace }
-${KPI_FIELDS}
+| fieldsAdd
+    p90_response_time = weighted_p90 / total_count,
+    error_rate_pct    = (failure_count / total_count) * 100,
+    availability_pct  = 100 - (failure_count / total_count) * 100
 | fieldsAdd name = namespace
-| fields name, availability_pct, error_rate_pct, total_count, avg_response_time, service_count
+| fields name, availability_pct, error_rate_pct, total_count, p90_response_time, service_count
 | sort total_count desc
 | limit 200`;
 }
@@ -118,12 +106,17 @@ export function heatmapQuery(namespace: string, [from, to]: readonly [string, st
   fields: { workload, workload_type }
 | fieldsAdd entity_id = dt.smartscape.service
 | fields name, workload, entity_id, namespace, cluster, timeframe, total, failures
-| limit 300`;
+| sort arraySum(total) desc
+| limit 200`;
 }
 
 export function serviceQuery(namespace: string, [from, to]: readonly [string, string]): string {
-  return `${METRIC_TIMESERIES}, from: ${from}, to: ${to}
-${METRIC_AGGREGATION}
+  return `timeseries {
+  total_count       = sum(dt.service.request.count, scalar: true),
+  failure_count     = sum(dt.service.request.failure_count, scalar: true),
+  p90_response_time = percentile(dt.service.request.response_time, 90, scalar: true)
+}, by: { dt.smartscape.service }, from: ${from}, to: ${to}
+| filter total_count > 0
 | lookup [
     ${namespaceLookupFor(namespace)}
   ],
@@ -145,8 +138,59 @@ ${METRIC_AGGREGATION}
   lookupField: service_id,
   fields: { workload, workload_type }
 | fieldsAdd entity_id = dt.smartscape.service
-${KPI_FIELDS}
-| fields name, workload, workload_type, entity_id, namespace, cluster, availability_pct, error_rate_pct, total_count, avg_response_time
+| fieldsAdd
+    error_rate_pct   = (failure_count / total_count) * 100,
+    availability_pct = 100 - (failure_count / total_count) * 100
+| fields name, workload, workload_type, entity_id, namespace, cluster, availability_pct, error_rate_pct, total_count, p90_response_time
 | sort total_count desc
+| limit 200`;
+}
+
+function intervalForDays(days: number): string {
+  if (days <= 1) return '30m';
+  if (days <= 3) return '1h';
+  if (days <= 7) return '2h';
+  if (days <= 14) return '4h';
+  if (days <= 31) return '6h';
+  return '12h';
+}
+
+export function serviceTimeseriesQuery(
+  namespace: string,
+  [from, to]: readonly [string, string],
+  days: number
+): string {
+  const interval = intervalForDays(days);
+  return `timeseries {
+  total       = sum(dt.service.request.count),
+  failures    = sum(dt.service.request.failure_count),
+  p50_latency = percentile(dt.service.request.response_time, 50),
+  p90_latency = percentile(dt.service.request.response_time, 90),
+  p99_latency = percentile(dt.service.request.response_time, 99)
+}, by: { dt.smartscape.service }, from: ${from}, to: ${to}, interval: ${interval}
+| filter arraySum(total) > 0
+| lookup [
+    ${namespaceLookupFor(namespace)}
+  ],
+  sourceField: dt.smartscape.service,
+  lookupField: service_id,
+  fields: { namespace, cluster }
+| filter isNotNull(namespace)
+| lookup [
+    ${SERVICE_DETAIL_LOOKUP}
+  ],
+  sourceField: dt.smartscape.service,
+  lookupField: service_id,
+  fields: { name }
+| filter isNotNull(name)
+| lookup [
+    ${WORKLOAD_LOOKUP}
+  ],
+  sourceField: dt.smartscape.service,
+  lookupField: service_id,
+  fields: { workload, workload_type }
+| fieldsAdd entity_id = dt.smartscape.service
+| fields name, workload, entity_id, namespace, cluster, timeframe, total, failures, p50_latency, p90_latency, p99_latency
+| sort arraySum(total) desc
 | limit 200`;
 }
